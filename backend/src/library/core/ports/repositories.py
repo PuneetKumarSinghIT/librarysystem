@@ -108,6 +108,17 @@ class LoanRepository(Protocol):
     ) -> tuple[list[Loan], int]: ...
 
 
+class AuditRepository(Protocol):
+    async def record(
+        self,
+        actor_staff_id: uuid.UUID | None,
+        action: str,
+        entity_type: str,
+        entity_id: uuid.UUID | None,
+        metadata: dict | None = None,
+    ) -> None: ...
+
+
 class RefreshTokenRepository(Protocol):
     async def add(
         self, staff_id: uuid.UUID, token_hash: str, expires_at: datetime

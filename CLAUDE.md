@@ -80,6 +80,10 @@ creating/editing files, verify they persisted (Read or `Get-ChildItem`) before m
   `/loans` (POST borrow, POST `/{id}/return`, GET list), auth-protected. 15 unit tests + full
   HTTP flow verified incl. **double-borrow → 409** and re-borrow after return.
 
+- **F11** — Hardening. Login rate limiting (slowapi, 5/min per IP → 429); persistent audit log
+  (`AuditRepository` + `SqlAlchemyAuditRepository`, optional in `LoanService`, records
+  `loan.borrow`/`loan.return` with actor); `pip-audit` = no known vulns. (Argon2, JWT rotation,
+  security headers, CORS, parameterized SQL already in place from earlier features.)
 - **F9** — gRPC completion. `AuthenticatedServicer` base (Bearer-metadata auth + session);
   `BookServicer`, `MemberServicer`, `LoanServicer` (thin over the same services), registered in
   `main_grpc`. Sample client `scripts/grpc_client.py` (login → ListBooks with token) verified

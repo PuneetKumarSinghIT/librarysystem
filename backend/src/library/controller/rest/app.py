@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 
 from library import __version__
@@ -17,6 +19,7 @@ from library.controller.rest.middleware import (
     RequestContextMiddleware,
     SecurityHeadersMiddleware,
 )
+from library.controller.rest.ratelimit import limiter
 from library.controller.rest.routers import auth, books, loans, members
 
 
@@ -44,6 +47,10 @@ def create_app() -> FastAPI:
     app.add_middleware(RequestContextMiddleware)
 
     register_exception_handlers(app)
+
+    # Rate limiting (brute-force protection) on sensitive endpoints.
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
     # Composition root: build shared security adapters once and expose via app.state.
     app.state.hasher = Argon2PasswordHasher(time_cost=settings.argon2_time_cost)

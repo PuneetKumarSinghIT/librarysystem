@@ -12,6 +12,7 @@ from fastapi import Depends, Header, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from library.adapter.db.engine import get_session
+from library.adapter.db.repositories.audit_repo import SqlAlchemyAuditRepository
 from library.adapter.db.repositories.book_repo import SqlAlchemyBookRepository
 from library.adapter.db.repositories.loan_repo import SqlAlchemyLoanRepository
 from library.adapter.db.repositories.member_repo import SqlAlchemyMemberRepository
@@ -56,6 +57,7 @@ async def get_loan_service(session: AsyncSession = Depends(get_session)) -> Loan
         member_repo=SqlAlchemyMemberRepository(session),
         loan_period_days=settings.loan_period_days,
         fine_per_day=settings.fine_per_day,
+        audit_repo=SqlAlchemyAuditRepository(session),
     )
 
 

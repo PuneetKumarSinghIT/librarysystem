@@ -15,7 +15,11 @@ from decimal import Decimal
 from library.core.entities import Loan
 from library.core.enums import CopyStatus, MemberStatus
 from library.core.errors import ConflictError, NotFoundError, ValidationError
-from library.core.ports.repositories import LoanRepository, MemberRepository
+from library.core.ports.repositories import (
+    AuditRepository,
+    LoanRepository,
+    MemberRepository,
+)
 from library.utils.clock import utcnow
 from library.utils.pagination import clamp_page
 
@@ -27,11 +31,25 @@ class LoanService:
         member_repo: MemberRepository,
         loan_period_days: int,
         fine_per_day: float,
+        audit_repo: AuditRepository | None = None,
     ) -> None:
         self._loans = loan_repo
         self._members = member_repo
         self._loan_period_days = loan_period_days
         self._fine_per_day = Decimal(str(fine_per_day))
+        self._audit = audit_repo
+
+    async def _audit_event(
+        self, staff_id, action: str, loan_id, member_id
+    ) -> None:
+        if self._audit is not None:
+            await self._audit.record(
+                actor_staff_id=staff_id,
+                action=action,
+                entity_type="loan",
+                entity_id=loan_id,
+                metadata={"member_id": str(member_id)},
+            )
 
     async def borrow(
         self,
@@ -67,6 +85,7 @@ class LoanService:
             # Lost the race to the partial unique index — someone else borrowed it first.
             raise ConflictError("This copy is already checked out") from None
 
+        await self._audit_event(staff_id, "loan.borrow", loan_id, member_id)
         view = await self._loans.get_loan_view(loan_id)
         assert view is not None  # just created
         return view
@@ -89,6 +108,7 @@ class LoanService:
                 loan_id, ref.member_id, amount, "Overdue return", returned_at
             )
 
+        await self._audit_event(None, "loan.return", loan_id, ref.member_id)
         view = await self._loans.get_loan_view(loan_id)
         assert view is not None
         return view
