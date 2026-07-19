@@ -9,9 +9,9 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from library.core.commands import BookCreate
-from library.core.entities import Book, BookCopy, RefreshTokenRecord, Staff
-from library.core.enums import CopyCondition, CopyStatus
+from library.core.commands import BookCreate, MemberCreate
+from library.core.entities import Book, BookCopy, Member, RefreshTokenRecord, Staff
+from library.core.enums import CopyCondition, CopyStatus, MemberStatus
 from library.core.errors import AlreadyExistsError
 from library.utils.clock import utcnow
 
@@ -145,3 +145,58 @@ class FakeBookRepository:
 
     async def list_copies(self, book_id) -> list[BookCopy]:
         return list(self.copies.get(book_id, []))
+
+
+class FakeMemberRepository:
+    """In-memory MemberRepository. Enforces email uniqueness; supports soft delete."""
+
+    def __init__(self) -> None:
+        self.members: dict[uuid.UUID, Member] = {}
+
+    def _email_taken(self, email: str, exclude: uuid.UUID | None = None) -> bool:
+        return any(m.email == email and m.id != exclude for m in self.members.values())
+
+    async def create(self, data: MemberCreate) -> Member:
+        if self._email_taken(data.email):
+            raise AlreadyExistsError("A member with this email already exists")
+        member = Member(
+            id=uuid.uuid4(),
+            first_name=data.first_name,
+            last_name=data.last_name,
+            email=data.email,
+            status=MemberStatus.ACTIVE,
+            phone=data.phone,
+            address=data.address,
+        )
+        self.members[member.id] = member
+        return member
+
+    async def update(self, member_id, changes):
+        member = self.members.get(member_id)
+        if member is None:
+            return None
+        if changes.get("email") and self._email_taken(changes["email"], exclude=member_id):
+            raise AlreadyExistsError("A member with this email already exists")
+        for key, value in changes.items():
+            setattr(member, key, value)
+        return member
+
+    async def get(self, member_id):
+        return self.members.get(member_id)
+
+    async def list(self, search, limit, offset):
+        items = list(self.members.values())
+        if search:
+            term = search.lower()
+            items = [
+                m
+                for m in items
+                if term in m.first_name.lower()
+                or term in m.last_name.lower()
+                or term in m.email.lower()
+            ]
+        items.sort(key=lambda m: (m.last_name, m.first_name))
+        return items[offset : offset + limit], len(items)
+
+    async def soft_delete(self, member_id) -> bool:
+        return self.members.pop(member_id, None) is not None

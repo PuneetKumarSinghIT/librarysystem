@@ -11,8 +11,8 @@ from collections.abc import Mapping
 from datetime import datetime
 from typing import Any, Protocol
 
-from library.core.commands import BookCreate
-from library.core.entities import Book, BookCopy, RefreshTokenRecord, Staff
+from library.core.commands import BookCreate, MemberCreate
+from library.core.entities import Book, BookCopy, Member, RefreshTokenRecord, Staff
 from library.core.enums import CopyCondition
 
 
@@ -42,6 +42,20 @@ class BookRepository(Protocol):
     ) -> BookCopy: ...
 
     async def list_copies(self, book_id: uuid.UUID) -> list[BookCopy]: ...
+
+
+class MemberRepository(Protocol):
+    async def create(self, data: MemberCreate) -> Member: ...
+
+    async def update(self, member_id: uuid.UUID, changes: Mapping[str, Any]) -> Member | None: ...
+
+    async def get(self, member_id: uuid.UUID) -> Member | None: ...
+
+    async def list(
+        self, search: str | None, limit: int, offset: int
+    ) -> tuple[list[Member], int]: ...
+
+    async def soft_delete(self, member_id: uuid.UUID) -> bool: ...
 
 
 class RefreshTokenRepository(Protocol):

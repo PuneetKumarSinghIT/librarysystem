@@ -14,9 +14,10 @@
 
 **Last updated:** 2026-07-19
 
-**Done:** F0 ✅ · F1 (db) ✅ · F2 (proto) ✅ · F3 (auth) ✅ 🎯 · F4 (books+copies) ✅
+**Done:** F0 ✅ · F1 (db) ✅ · F2 (proto) ✅ · F3 (auth) ✅ 🎯 · F4 (books) ✅ · F5 (members) ✅
 **In progress:** —
-**Next up:** F5 (Members CRUD). Then lending F6–F8. **Next milestone:** full lending flow end-to-end.
+**Next up:** F6 (borrow) → F7 (return) → F8 (queries). **Next milestone:** full lending flow end-to-end.
+**Tests:** 48 unit tests green (auth 14 · books 19 · members 15). Run: `.\.venv\Scripts\python -m pytest -q`.
 
 **Demo admin (seeded):** `admin@example.com` / `Admin@12345` (override via `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`).
 **Test login:** `POST http://localhost:8000/auth/login` with `{"email","password"}` → returns access+refresh tokens.
@@ -63,6 +64,14 @@ creating/editing files, verify they persisted (Read or `Get-ChildItem`) before m
   add/list), all auth-protected. 19 unit tests; verified over HTTP (401/201/409/400, search,
   counts). gRPC BookServicer deferred to the consolidated gRPC pass (see note below).
   Helpers added: `utils/pagination.clamp_page`, `core/commands.py`.
+
+- **F5** — Members CRUD. `MemberRepository` port; `SqlAlchemyMemberRepository` (ILIKE search
+  on name/email, soft delete, email-uniqueness → AlreadyExists); `MemberService` (validation:
+  required names, email format+lowercase, status enum; partial update); REST `/members`
+  (create/list/get/patch/delete-soft), auth-protected. 15 unit tests; verified over HTTP.
+- **DB fix (applies to all updates):** set `Base.__mapper_args__ = {"eager_defaults": True}` so
+  UPDATEs fetch server-generated `updated_at` via RETURNING — otherwise mapping an entity after
+  an update triggered a lazy load → `MissingGreenlet` in async code. Fixed member + book PATCH.
 
 > **gRPC servicers note:** AuthServicer is implemented as the proven pattern. Book/Member/Loan
 > gRPC servicers + a gRPC auth interceptor are batched into **F9** to keep each feature's REST

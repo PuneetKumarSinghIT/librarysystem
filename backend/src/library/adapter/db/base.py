@@ -13,7 +13,14 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
 class Base(DeclarativeBase):
-    """Declarative base for all ORM models."""
+    """Declarative base for all ORM models.
+
+    eager_defaults makes INSERT/UPDATE fetch server-generated values (created_at,
+    updated_at via the trigger/onupdate) through RETURNING, so entity mapping never
+    triggers a lazy reload in async code.
+    """
+
+    __mapper_args__ = {"eager_defaults": True}
 
 
 def str_enum(enum_cls: type[StrEnum]) -> SAEnum:

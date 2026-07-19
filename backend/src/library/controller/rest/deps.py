@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from library.adapter.db.engine import get_session
 from library.adapter.db.repositories.book_repo import SqlAlchemyBookRepository
+from library.adapter.db.repositories.member_repo import SqlAlchemyMemberRepository
 from library.adapter.db.repositories.refresh_token_repo import (
     SqlAlchemyRefreshTokenRepository,
 )
@@ -23,6 +24,7 @@ from library.core.enums import StaffRole
 from library.core.errors import PermissionDeniedError, UnauthenticatedError
 from library.service.auth_service import AuthService
 from library.service.book_service import BookService
+from library.service.member_service import MemberService
 
 
 async def get_auth_service(
@@ -39,6 +41,10 @@ async def get_auth_service(
 
 async def get_book_service(session: AsyncSession = Depends(get_session)) -> BookService:
     return BookService(repo=SqlAlchemyBookRepository(session))
+
+
+async def get_member_service(session: AsyncSession = Depends(get_session)) -> MemberService:
+    return MemberService(repo=SqlAlchemyMemberRepository(session))
 
 
 def get_current_claims(

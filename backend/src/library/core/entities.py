@@ -10,7 +10,22 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
-from library.core.enums import CopyCondition, CopyStatus, StaffRole
+from library.core.enums import CopyCondition, CopyStatus, MemberStatus, StaffRole
+
+
+@dataclass(slots=True)
+class Member:
+    """A library member (borrower)."""
+
+    id: uuid.UUID
+    first_name: str
+    last_name: str
+    email: str
+    status: MemberStatus
+    phone: str | None = None
+    address: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 @dataclass(slots=True)
