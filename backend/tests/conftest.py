@@ -10,7 +10,13 @@ from library.adapter.security.token_codec import JwtAccessTokenCodec
 from library.core.entities import Staff
 from library.core.enums import StaffRole
 from library.service.auth_service import AuthService
-from tests.fakes import FakePasswordHasher, FakeRefreshTokenRepository, FakeStaffRepository
+from library.service.book_service import BookService
+from tests.fakes import (
+    FakeBookRepository,
+    FakePasswordHasher,
+    FakeRefreshTokenRepository,
+    FakeStaffRepository,
+)
 
 
 @pytest.fixture
@@ -51,6 +57,16 @@ def make_staff(hasher: FakePasswordHasher):
         )
 
     return _make
+
+
+@pytest.fixture
+def book_repo() -> FakeBookRepository:
+    return FakeBookRepository()
+
+
+@pytest.fixture
+def book_service(book_repo: FakeBookRepository) -> BookService:
+    return BookService(repo=book_repo)
 
 
 @pytest.fixture

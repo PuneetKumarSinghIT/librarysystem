@@ -10,7 +10,37 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
-from library.core.enums import StaffRole
+from library.core.enums import CopyCondition, CopyStatus, StaffRole
+
+
+@dataclass(slots=True)
+class BookCopy:
+    """A physical copy of a book."""
+
+    id: uuid.UUID
+    book_id: uuid.UUID
+    barcode: str
+    condition: CopyCondition
+    status: CopyStatus
+    created_at: datetime | None = None
+
+
+@dataclass(slots=True)
+class Book:
+    """A catalog title, with convenience copy counts for listing."""
+
+    id: uuid.UUID
+    title: str
+    author: str
+    isbn: str | None = None
+    publisher: str | None = None
+    published_year: int | None = None
+    category: str | None = None
+    description: str | None = None
+    total_copies: int = 0
+    available_copies: int = 0
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 @dataclass(slots=True)

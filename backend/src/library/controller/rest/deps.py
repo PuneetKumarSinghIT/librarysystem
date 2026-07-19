@@ -12,6 +12,7 @@ from fastapi import Depends, Header, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from library.adapter.db.engine import get_session
+from library.adapter.db.repositories.book_repo import SqlAlchemyBookRepository
 from library.adapter.db.repositories.refresh_token_repo import (
     SqlAlchemyRefreshTokenRepository,
 )
@@ -21,6 +22,7 @@ from library.core.entities import AccessClaims
 from library.core.enums import StaffRole
 from library.core.errors import PermissionDeniedError, UnauthenticatedError
 from library.service.auth_service import AuthService
+from library.service.book_service import BookService
 
 
 async def get_auth_service(
@@ -33,6 +35,10 @@ async def get_auth_service(
         token_codec=request.app.state.token_codec,
         refresh_ttl_seconds=get_settings().jwt_refresh_ttl_seconds,
     )
+
+
+async def get_book_service(session: AsyncSession = Depends(get_session)) -> BookService:
+    return BookService(repo=SqlAlchemyBookRepository(session))
 
 
 def get_current_claims(

@@ -17,7 +17,7 @@ from library.controller.rest.middleware import (
     RequestContextMiddleware,
     SecurityHeadersMiddleware,
 )
-from library.controller.rest.routers import auth
+from library.controller.rest.routers import auth, books
 
 
 def create_app() -> FastAPI:
@@ -63,5 +63,6 @@ def create_app() -> FastAPI:
 
     # Feature routers.
     app.include_router(auth.router)
+    app.include_router(books.router)
 
     return app

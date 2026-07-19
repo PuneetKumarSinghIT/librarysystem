@@ -14,9 +14,9 @@
 
 **Last updated:** 2026-07-19
 
-**Done:** F0 ✅ · F1 (database) ✅ · F2 (proto) ✅ · F3 (auth) ✅ — 🎯 **MILESTONE: login works end-to-end**
+**Done:** F0 ✅ · F1 (db) ✅ · F2 (proto) ✅ · F3 (auth) ✅ 🎯 · F4 (books+copies) ✅
 **In progress:** —
-**Next up:** F4 (Books + Copies CRUD). Then F5 (Members), then lending F6–F8.
+**Next up:** F5 (Members CRUD). Then lending F6–F8. **Next milestone:** full lending flow end-to-end.
 
 **Demo admin (seeded):** `admin@example.com` / `Admin@12345` (override via `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`).
 **Test login:** `POST http://localhost:8000/auth/login` with `{"email","password"}` → returns access+refresh tokens.
@@ -56,6 +56,17 @@ creating/editing files, verify they persisted (Read or `Get-ChildItem`) before m
   REST router `/auth/*` + gRPC `AuthServicer` (both thin over the same service); RBAC dep
   `require_role`; admin seeding. 14 unit tests (all edge cases) green; login verified over HTTP.
   Pattern to reuse for F4+: port → adapter → service (DI) → REST router + gRPC servicer → tests.
+- **F4** — Books + Copies CRUD. `BookRepository` port; `SqlAlchemyBookRepository` (trigram
+  ILIKE search, grouped-subquery copy counts to avoid N+1, IntegrityError→AlreadyExists);
+  `BookService` (validation: required title/author, year range, ISBN-10/13 normalize; partial
+  update; pagination clamp ≤100); REST router `/books` (create/list/get/patch + `/copies`
+  add/list), all auth-protected. 19 unit tests; verified over HTTP (401/201/409/400, search,
+  counts). gRPC BookServicer deferred to the consolidated gRPC pass (see note below).
+  Helpers added: `utils/pagination.clamp_page`, `core/commands.py`.
+
+> **gRPC servicers note:** AuthServicer is implemented as the proven pattern. Book/Member/Loan
+> gRPC servicers + a gRPC auth interceptor are batched into **F9** to keep each feature's REST
+> vertical slice shippable and the running app (REST + frontend) moving. Protos already exist.
 
 ---
 
@@ -500,7 +511,9 @@ when it meets the Definition of Done (§13).** Check items off here as we comple
 - [ ] **F7 — Lending (return):** `ReturnBook` — closes loan, frees copy, optional overdue
   fine.
 - [ ] **F8 — Queries:** list active loans per member, overdue report, catalog availability.
-- [ ] **F9 — REST gateway polish:** OpenAPI docs, error envelope, CORS, security headers.
+- [ ] **F9 — REST polish + gRPC completion:** OpenAPI docs, error envelope, CORS, security
+  headers; **implement Book/Member/Loan gRPC servicers + gRPC auth interceptor** (AuthServicer
+  already done as the pattern).
 - [ ] **F10 — Frontend:** login, books list/detail, members, borrow/return flows, "member's
   current loans" view. TanStack Query + form validation.
 - [ ] **F11 — Hardening:** audit log, rate limits across mutations, input fuzz/validation

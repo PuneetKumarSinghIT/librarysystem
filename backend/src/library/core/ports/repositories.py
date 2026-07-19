@@ -7,10 +7,13 @@ Each repository is small and aggregate-focused (Interface Segregation). Adapters
 from __future__ import annotations
 
 import uuid
+from collections.abc import Mapping
 from datetime import datetime
-from typing import Protocol
+from typing import Any, Protocol
 
-from library.core.entities import RefreshTokenRecord, Staff
+from library.core.commands import BookCreate
+from library.core.entities import Book, BookCopy, RefreshTokenRecord, Staff
+from library.core.enums import CopyCondition
 
 
 class StaffRepository(Protocol):
@@ -19,6 +22,26 @@ class StaffRepository(Protocol):
     async def get_by_id(self, staff_id: uuid.UUID) -> Staff | None: ...
 
     async def touch_last_login(self, staff_id: uuid.UUID) -> None: ...
+
+
+class BookRepository(Protocol):
+    async def create(self, data: BookCreate) -> Book: ...
+
+    async def update(self, book_id: uuid.UUID, changes: Mapping[str, Any]) -> Book | None: ...
+
+    async def get(self, book_id: uuid.UUID) -> Book | None: ...
+
+    async def list(
+        self, search: str | None, limit: int, offset: int
+    ) -> tuple[list[Book], int]: ...
+
+    async def book_exists(self, book_id: uuid.UUID) -> bool: ...
+
+    async def add_copy(
+        self, book_id: uuid.UUID, barcode: str, condition: CopyCondition
+    ) -> BookCopy: ...
+
+    async def list_copies(self, book_id: uuid.UUID) -> list[BookCopy]: ...
 
 
 class RefreshTokenRepository(Protocol):
