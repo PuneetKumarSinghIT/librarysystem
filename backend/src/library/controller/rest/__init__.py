@@ -1,0 +1,1 @@
+"""REST controller (FastAPI)."""

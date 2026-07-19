@@ -1,0 +1,59 @@
+# Neighborhood Library Service — local stack.
+#
+# Fast dev loop (recommended): run ONLY Postgres here, run backend + frontend natively.
+#   docker compose up -d postgres
+#
+# Full containerized stack (everything in Docker):
+#   docker compose --profile full up --build
+#
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: library_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-library}
+      POSTGRES_USER: ${POSTGRES_USER:-library_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-library_dev_pw}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-library_app} -d ${POSTGRES_DB:-library}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+    container_name: library_backend
+    profiles: ["full"]
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-library_app}:${POSTGRES_PASSWORD:-library_dev_pw}@postgres:5432/${POSTGRES_DB:-library}
+    ports:
+      - "${REST_PORT:-8000}:8000"
+      - "${GRPC_PORT:-50051}:50051"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: library_frontend
+    profiles: ["full"]
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pgdata:
