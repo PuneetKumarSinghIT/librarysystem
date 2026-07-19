@@ -14,10 +14,10 @@
 
 **Last updated:** 2026-07-19
 
-**Done:** F0 ✅ · F1 (db) ✅ · F2 (proto) ✅ · F3 (auth) ✅ 🎯 · F4 (books) ✅ · F5 (members) ✅
+**Done:** F0✅ F1✅ F2✅ F3✅🎯 F4✅ F5✅ F6✅ F7✅ F8✅ 🎯 **MILESTONE: full lending flow works**
 **In progress:** —
-**Next up:** F6 (borrow) → F7 (return) → F8 (queries). **Next milestone:** full lending flow end-to-end.
-**Tests:** 48 unit tests green (auth 14 · books 19 · members 15). Run: `.\.venv\Scripts\python -m pytest -q`.
+**Next up:** F9 (gRPC servicers + REST polish) → F10 (frontend) → F11 (hardening) → F12 (tests) → F13 (load) → F14 (README).
+**Tests:** 63 unit tests green (auth 14 · books 19 · members 15 · loans 15). Run: `.\.venv\Scripts\python -m pytest -q`.
 
 **Demo admin (seeded):** `admin@example.com` / `Admin@12345` (override via `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`).
 **Test login:** `POST http://localhost:8000/auth/login` with `{"email","password"}` → returns access+refresh tokens.
@@ -72,6 +72,13 @@ creating/editing files, verify they persisted (Read or `Get-ChildItem`) before m
 - **DB fix (applies to all updates):** set `Base.__mapper_args__ = {"eager_defaults": True}` so
   UPDATEs fetch server-generated `updated_at` via RETURNING — otherwise mapping an entity after
   an update triggered a lazy load → `MissingGreenlet` in async code. Fixed member + book PATCH.
+- **F6/F7/F8** — Lending. `LoanRepository` port; `SqlAlchemyLoanRepository` (row-locked
+  `SELECT … FOR UPDATE` copy resolution, `FOR UPDATE SKIP LOCKED` for by-book borrow, joins for
+  enriched loan views, IntegrityError on partial index → ConflictError, overdue fine insert);
+  `LoanService` (borrow: member active + copy available checks; return: close loan, free copy,
+  overdue fine = ceil(days)·fine_per_day; list with member/active/overdue filters). REST
+  `/loans` (POST borrow, POST `/{id}/return`, GET list), auth-protected. 15 unit tests + full
+  HTTP flow verified incl. **double-borrow → 409** and re-borrow after return.
 
 > **gRPC servicers note:** AuthServicer is implemented as the proven pattern. Book/Member/Loan
 > gRPC servicers + a gRPC auth interceptor are batched into **F9** to keep each feature's REST

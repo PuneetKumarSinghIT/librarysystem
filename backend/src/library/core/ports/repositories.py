@@ -9,10 +9,20 @@ from __future__ import annotations
 import uuid
 from collections.abc import Mapping
 from datetime import datetime
+from decimal import Decimal
 from typing import Any, Protocol
 
 from library.core.commands import BookCreate, MemberCreate
-from library.core.entities import Book, BookCopy, Member, RefreshTokenRecord, Staff
+from library.core.entities import (
+    Book,
+    BookCopy,
+    CopyRef,
+    Loan,
+    LoanRef,
+    Member,
+    RefreshTokenRecord,
+    Staff,
+)
 from library.core.enums import CopyCondition
 
 
@@ -56,6 +66,46 @@ class MemberRepository(Protocol):
     ) -> tuple[list[Member], int]: ...
 
     async def soft_delete(self, member_id: uuid.UUID) -> bool: ...
+
+
+class LoanRepository(Protocol):
+    async def lock_copy(self, copy_id: uuid.UUID) -> CopyRef | None: ...
+
+    async def lock_available_copy_for_book(self, book_id: uuid.UUID) -> CopyRef | None: ...
+
+    async def create_loan(
+        self,
+        copy_id: uuid.UUID,
+        member_id: uuid.UUID,
+        staff_id: uuid.UUID | None,
+        borrowed_at: datetime,
+        due_at: datetime,
+    ) -> uuid.UUID: ...
+
+    async def get_loan_ref(self, loan_id: uuid.UUID) -> LoanRef | None: ...
+
+    async def close_loan(self, loan_id: uuid.UUID, returned_at: datetime) -> None: ...
+
+    async def create_fine(
+        self,
+        loan_id: uuid.UUID,
+        member_id: uuid.UUID,
+        amount: Decimal,
+        reason: str,
+        assessed_at: datetime,
+    ) -> None: ...
+
+    async def get_loan_view(self, loan_id: uuid.UUID) -> Loan | None: ...
+
+    async def list_loans(
+        self,
+        member_id: uuid.UUID | None,
+        active_only: bool,
+        overdue_only: bool,
+        now: datetime,
+        limit: int,
+        offset: int,
+    ) -> tuple[list[Loan], int]: ...
 
 
 class RefreshTokenRepository(Protocol):

@@ -10,7 +10,52 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
-from library.core.enums import CopyCondition, CopyStatus, MemberStatus, StaffRole
+from library.core.enums import (
+    CopyCondition,
+    CopyStatus,
+    LoanStatus,
+    MemberStatus,
+    StaffRole,
+)
+
+
+@dataclass(slots=True)
+class CopyRef:
+    """Minimal copy state used by the lending transaction."""
+
+    id: uuid.UUID
+    book_id: uuid.UUID
+    status: CopyStatus
+
+
+@dataclass(slots=True)
+class LoanRef:
+    """Minimal loan state used by the return transaction."""
+
+    id: uuid.UUID
+    copy_id: uuid.UUID
+    member_id: uuid.UUID
+    due_at: datetime
+    returned_at: datetime | None
+
+
+@dataclass(slots=True)
+class Loan:
+    """Enriched loan view for read/return/borrow responses."""
+
+    id: uuid.UUID
+    copy_id: uuid.UUID
+    book_id: uuid.UUID
+    book_title: str
+    barcode: str
+    member_id: uuid.UUID
+    member_name: str
+    borrowed_at: datetime
+    due_at: datetime
+    status: LoanStatus
+    returned_at: datetime | None = None
+    staff_id: uuid.UUID | None = None
+    renewed_count: int = 0
 
 
 @dataclass(slots=True)

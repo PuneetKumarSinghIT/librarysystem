@@ -8,11 +8,21 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
 from library.core.commands import BookCreate, MemberCreate
-from library.core.entities import Book, BookCopy, Member, RefreshTokenRecord, Staff
-from library.core.enums import CopyCondition, CopyStatus, MemberStatus
-from library.core.errors import AlreadyExistsError
+from library.core.entities import (
+    Book,
+    BookCopy,
+    CopyRef,
+    Loan,
+    LoanRef,
+    Member,
+    RefreshTokenRecord,
+    Staff,
+)
+from library.core.enums import CopyCondition, CopyStatus, LoanStatus, MemberStatus
+from library.core.errors import AlreadyExistsError, ConflictError
 from library.utils.clock import utcnow
 
 
@@ -200,3 +210,131 @@ class FakeMemberRepository:
 
     async def soft_delete(self, member_id) -> bool:
         return self.members.pop(member_id, None) is not None
+
+
+class FakeLoanRepository:
+    """In-memory LoanRepository. Enforces one active loan per copy (like the DB index)."""
+
+    def __init__(self) -> None:
+        self.copies: dict[uuid.UUID, dict] = {}
+        self.loans: dict[uuid.UUID, dict] = {}
+        self.fines: list[dict] = []
+        self.members: dict[uuid.UUID, str] = {}
+
+    def add_copy(
+        self,
+        *,
+        book_id: uuid.UUID | None = None,
+        status: CopyStatus = CopyStatus.AVAILABLE,
+        barcode: str = "BC-001",
+        title: str = "Some Book",
+    ) -> uuid.UUID:
+        copy_id = uuid.uuid4()
+        self.copies[copy_id] = {
+            "book_id": book_id or uuid.uuid4(),
+            "status": status,
+            "barcode": barcode,
+            "title": title,
+        }
+        return copy_id
+
+    def register_member(self, member_id: uuid.UUID, name: str = "Ada Lovelace") -> None:
+        self.members[member_id] = name
+
+    async def lock_copy(self, copy_id):
+        c = self.copies.get(copy_id)
+        return CopyRef(id=copy_id, book_id=c["book_id"], status=c["status"]) if c else None
+
+    async def lock_available_copy_for_book(self, book_id):
+        for cid, c in self.copies.items():
+            if c["book_id"] == book_id and c["status"] == CopyStatus.AVAILABLE:
+                return CopyRef(id=cid, book_id=book_id, status=c["status"])
+        return None
+
+    async def create_loan(self, copy_id, member_id, staff_id, borrowed_at, due_at):
+        if any(
+            loan["copy_id"] == copy_id and loan["returned_at"] is None
+            for loan in self.loans.values()
+        ):
+            raise ConflictError("This copy is already checked out")
+        loan_id = uuid.uuid4()
+        self.loans[loan_id] = {
+            "copy_id": copy_id,
+            "member_id": member_id,
+            "staff_id": staff_id,
+            "borrowed_at": borrowed_at,
+            "due_at": due_at,
+            "returned_at": None,
+            "status": LoanStatus.ACTIVE,
+            "renewed_count": 0,
+        }
+        self.copies[copy_id]["status"] = CopyStatus.BORROWED
+        return loan_id
+
+    async def get_loan_ref(self, loan_id):
+        loan = self.loans.get(loan_id)
+        if loan is None:
+            return None
+        return LoanRef(
+            id=loan_id,
+            copy_id=loan["copy_id"],
+            member_id=loan["member_id"],
+            due_at=loan["due_at"],
+            returned_at=loan["returned_at"],
+        )
+
+    async def close_loan(self, loan_id, returned_at):
+        loan = self.loans[loan_id]
+        loan["returned_at"] = returned_at
+        loan["status"] = LoanStatus.RETURNED
+        self.copies[loan["copy_id"]]["status"] = CopyStatus.AVAILABLE
+
+    async def create_fine(self, loan_id, member_id, amount, reason, assessed_at):
+        self.fines.append(
+            {
+                "loan_id": loan_id,
+                "member_id": member_id,
+                "amount": Decimal(amount),
+                "reason": reason,
+            }
+        )
+
+    async def get_loan_view(self, loan_id):
+        loan = self.loans.get(loan_id)
+        if loan is None:
+            return None
+        copy = self.copies[loan["copy_id"]]
+        status = (
+            LoanStatus.RETURNED
+            if loan["returned_at"]
+            else (LoanStatus.OVERDUE if loan["due_at"] < utcnow() else LoanStatus.ACTIVE)
+        )
+        return Loan(
+            id=loan_id,
+            copy_id=loan["copy_id"],
+            book_id=copy["book_id"],
+            book_title=copy["title"],
+            barcode=copy["barcode"],
+            member_id=loan["member_id"],
+            member_name=self.members.get(loan["member_id"], "Unknown"),
+            borrowed_at=loan["borrowed_at"],
+            due_at=loan["due_at"],
+            returned_at=loan["returned_at"],
+            status=status,
+            staff_id=loan["staff_id"],
+            renewed_count=loan["renewed_count"],
+        )
+
+    async def list_loans(self, member_id, active_only, overdue_only, now, limit, offset):
+        matches = []
+        for loan_id, loan in self.loans.items():
+            if member_id and loan["member_id"] != member_id:
+                continue
+            if (active_only or overdue_only) and loan["returned_at"] is not None:
+                continue
+            if overdue_only and not loan["due_at"] < now:
+                continue
+            matches.append(loan_id)
+        total = len(matches)
+        views = [await self.get_loan_view(lid) for lid in matches[offset : offset + limit]]
+        return views, total

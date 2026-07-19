@@ -11,9 +11,11 @@ from library.core.entities import Staff
 from library.core.enums import StaffRole
 from library.service.auth_service import AuthService
 from library.service.book_service import BookService
+from library.service.loan_service import LoanService
 from library.service.member_service import MemberService
 from tests.fakes import (
     FakeBookRepository,
+    FakeLoanRepository,
     FakeMemberRepository,
     FakePasswordHasher,
     FakeRefreshTokenRepository,
@@ -79,6 +81,23 @@ def member_repo() -> FakeMemberRepository:
 @pytest.fixture
 def member_service(member_repo: FakeMemberRepository) -> MemberService:
     return MemberService(repo=member_repo)
+
+
+@pytest.fixture
+def loan_repo() -> FakeLoanRepository:
+    return FakeLoanRepository()
+
+
+@pytest.fixture
+def loan_service(
+    loan_repo: FakeLoanRepository, member_repo: FakeMemberRepository
+) -> LoanService:
+    return LoanService(
+        loan_repo=loan_repo,
+        member_repo=member_repo,
+        loan_period_days=14,
+        fine_per_day=0.25,
+    )
 
 
 @pytest.fixture
