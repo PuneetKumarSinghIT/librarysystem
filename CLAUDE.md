@@ -14,12 +14,11 @@
 
 **Last updated:** 2026-07-19
 
-**Done:** F0–F13 ✅ (all features + gRPC + frontend + hardening + tests + load test)
+**Done:** F0–F14 ✅ — **PROJECT COMPLETE**. All features + gRPC + frontend + hardening + tests + load test + README.
 **In progress:** —
-**Next up:** F14 (comprehensive README) → final full-stack verify → done.
-**Tests:** 63 unit tests green, **98% coverage on service+core** (`pytest --cov=library.service --cov=library.core`).
-**Load test:** 500 users, 0% errors, ~142 req/s, p50 1.6s → `docs/load-test.md`.
-**Frontend:** `cd frontend && npm run dev` → http://localhost:3000. Needs backend on :8000.
+**Status:** Full stack verified end-to-end (backend health/login OK, frontend serves HTTP 200). All committed & pushed.
+**Tests:** 63 unit tests green, **98% coverage on service+core**. Load test: 500 users, 0% errors → `docs/load-test.md`.
+**Repo:** public GitHub `PuneetKumarSinghIT/librarysystem`. Docs: `README.md` (full tutorial + architecture + complexity + security).
 
 **Demo admin (seeded):** `admin@example.com` / `Admin@12345` (override via `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`).
 **Test login:** `POST http://localhost:8000/auth/login` with `{"email","password"}` → returns access+refresh tokens.
