@@ -14,10 +14,11 @@
 
 **Last updated:** 2026-07-19
 
-**Done:** F0✅ F1✅ F2✅ F3✅🎯 F4✅ F5✅ F6✅ F7✅ F8✅ 🎯 **MILESTONE: full lending flow works**
+**Done:** F0–F9 ✅ · F11 ✅ · **F10 (frontend) ✅**  — backend + gRPC + web UI all working
 **In progress:** —
-**Next up:** F9 (gRPC servicers + REST polish) → F10 (frontend) → F11 (hardening) → F12 (tests) → F13 (load) → F14 (README).
-**Tests:** 63 unit tests green (auth 14 · books 19 · members 15 · loans 15). Run: `.\.venv\Scripts\python -m pytest -q`.
+**Next up:** F13 (load test) → F12 (coverage) → F14 (README) → final verify.
+**Tests:** 63 unit tests green. Frontend builds clean (Next 16). Run tests: `.\.venv\Scripts\python -m pytest -q`.
+**Frontend:** `cd frontend && npm run dev` → http://localhost:3000 (login → books/members/loans). Needs backend on :8000.
 
 **Demo admin (seeded):** `admin@example.com` / `Admin@12345` (override via `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`).
 **Test login:** `POST http://localhost:8000/auth/login` with `{"email","password"}` → returns access+refresh tokens.
@@ -80,6 +81,11 @@ creating/editing files, verify they persisted (Read or `Get-ChildItem`) before m
   `/loans` (POST borrow, POST `/{id}/return`, GET list), auth-protected. 15 unit tests + full
   HTTP flow verified incl. **double-borrow → 409** and re-borrow after return.
 
+- **F10** — Frontend (Next.js 16, App Router, TS, Tailwind 4). Typed API client (`lib/api.ts`),
+  auth context with token in localStorage (`lib/auth.tsx`), `Nav`; pages: `/login`, `/books`
+  (list/search/create + expandable copies), `/members` (list/search/create), `/loans` (borrow
+  by member+book, list active/all, return). Talks to REST at `NEXT_PUBLIC_API_BASE_URL`
+  (default :8000). Production build passes (5 routes, TS clean).
 - **F11** — Hardening. Login rate limiting (slowapi, 5/min per IP → 429); persistent audit log
   (`AuditRepository` + `SqlAlchemyAuditRepository`, optional in `LoanService`, records
   `loan.borrow`/`loan.return` with actor); `pip-audit` = no known vulns. (Argon2, JWT rotation,
