@@ -14,11 +14,12 @@
 
 **Last updated:** 2026-07-19
 
-**Done:** F0–F9 ✅ · F11 ✅ · **F10 (frontend) ✅**  — backend + gRPC + web UI all working
+**Done:** F0–F13 ✅ (all features + gRPC + frontend + hardening + tests + load test)
 **In progress:** —
-**Next up:** F13 (load test) → F12 (coverage) → F14 (README) → final verify.
-**Tests:** 63 unit tests green. Frontend builds clean (Next 16). Run tests: `.\.venv\Scripts\python -m pytest -q`.
-**Frontend:** `cd frontend && npm run dev` → http://localhost:3000 (login → books/members/loans). Needs backend on :8000.
+**Next up:** F14 (comprehensive README) → final full-stack verify → done.
+**Tests:** 63 unit tests green, **98% coverage on service+core** (`pytest --cov=library.service --cov=library.core`).
+**Load test:** 500 users, 0% errors, ~142 req/s, p50 1.6s → `docs/load-test.md`.
+**Frontend:** `cd frontend && npm run dev` → http://localhost:3000. Needs backend on :8000.
 
 **Demo admin (seeded):** `admin@example.com` / `Admin@12345` (override via `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`).
 **Test login:** `POST http://localhost:8000/auth/login` with `{"email","password"}` → returns access+refresh tokens.

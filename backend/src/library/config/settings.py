@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     database_url: str = (
         "postgresql+asyncpg://library_app:library_dev_pw@localhost:5432/library"
     )
+    db_pool_size: int = 10
+    db_max_overflow: int = 20
 
     # ── Auth / JWT ──
     jwt_secret: str = "dev_only_change_me"

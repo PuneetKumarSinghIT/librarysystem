@@ -33,5 +33,8 @@ Thumbs.db
 # Docker volumes / data
 pgdata/
 
+# Load-test generated CSVs
+backend/loadtest/report_*.csv
+
 # Assignment brief (third-party document, not part of the deliverable code)
 *.pdf
