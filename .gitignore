@@ -21,8 +21,8 @@ out/
 npm-debug.log*
 yarn-error.log*
 
-# Generated gRPC stubs (regenerated from proto)
-backend/src/library/transport/grpc/gen/
+# Generated gRPC stubs are committed (so the repo runs without protoc); regenerate
+# with `python -m scripts.gen_proto`. Kept in src/library/v1/.
 
 # OS / editor
 .DS_Store

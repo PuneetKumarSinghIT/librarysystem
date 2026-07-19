@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package library.v1;
+
+// Shared message types used across the library service contract.
+
+// Offset/limit pagination parameters for list RPCs.
+message PageParams {
+  // Max items to return (server clamps to a sane maximum, e.g. 100).
+  int32 limit = 1;
+  // Number of items to skip.
+  int32 offset = 2;
+}
+
+// Pagination metadata returned by list RPCs.
+message PageInfo {
+  int32 limit = 1;
+  int32 offset = 2;
+  // Total number of matching rows (before limit/offset).
+  int64 total = 3;
+}

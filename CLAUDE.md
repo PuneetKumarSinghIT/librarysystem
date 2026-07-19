@@ -14,9 +14,9 @@
 
 **Last updated:** 2026-07-19
 
-**Done:** F0 (scaffold) ✅ · F1 (database) ✅
-**In progress:** — (F1 just completed)
-**Next up:** F2 (proto contract) → F3 (auth). **Milestone target:** "login works end-to-end" (F1+F2+F3).
+**Done:** F0 (scaffold) ✅ · F1 (database) ✅ · F2 (proto contract) ✅
+**In progress:** F3 (auth)
+**Next up:** F3 (auth). **Milestone target:** "login works end-to-end" (F1+F2+F3).
 
 **Environment / how to run locally:**
 - Postgres runs in Docker: `docker compose up -d postgres` (container `library_postgres`, db `library`, user `library_app`).
@@ -42,6 +42,10 @@ creating/editing files, verify they persisted (Read or `Get-ChildItem`) before m
 - **F1** — ORM models (staff, members, books, book_copies, loans, fines, audit_log,
   refresh_tokens), Alembic async env + initial migration (extensions, constraints, indexes,
   partial unique index, updated_at triggers), seed script. Migration applied to Postgres; seed run; lint clean.
+- **F2** — Protobuf contract in `proto/library/v1/` (common, auth, books, members, loans) with
+  services AuthService/BookService/MemberService/LoanService. Codegen via `scripts/gen_proto.py`
+  → stubs committed at `src/library/v1/*_pb2*.py` (import as `library.v1.<name>_pb2`); excluded from ruff.
+  To regenerate: `python -m scripts.gen_proto`.
 
 ---
 

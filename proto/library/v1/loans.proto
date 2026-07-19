@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package library.v1;
+
+import "google/protobuf/timestamp.proto";
+import "library/v1/common.proto";
+
+// Lending operations: borrow, return, and queries.
+
+message Loan {
+  string id = 1;
+  string copy_id = 2;
+  string book_id = 3;
+  string book_title = 4;
+  string barcode = 5;
+  string member_id = 6;
+  string member_name = 7;
+  string staff_id = 8;
+  google.protobuf.Timestamp borrowed_at = 9;
+  google.protobuf.Timestamp due_at = 10;
+  google.protobuf.Timestamp returned_at = 11; // unset while still out
+  string status = 12; // "active" | "returned" | "overdue"
+  int32 renewed_count = 13;
+}
+
+// Borrow a copy. Provide either copy_id (specific copy) or book_id (any available copy).
+message BorrowBookRequest {
+  string member_id = 1;
+  string copy_id = 2;
+  string book_id = 3;
+}
+
+message ReturnBookRequest {
+  string loan_id = 1;
+}
+
+message ListLoansRequest {
+  string member_id = 1;   // filter by member; empty = all
+  bool active_only = 2;   // only not-yet-returned loans
+  bool overdue_only = 3;  // only overdue loans
+  PageParams page = 4;
+}
+
+message ListLoansResponse {
+  repeated Loan loans = 1;
+  PageInfo page = 2;
+}
+
+service LoanService {
+  rpc BorrowBook(BorrowBookRequest) returns (Loan);
+  rpc ReturnBook(ReturnBookRequest) returns (Loan);
+  rpc ListLoans(ListLoansRequest) returns (ListLoansResponse);
+}

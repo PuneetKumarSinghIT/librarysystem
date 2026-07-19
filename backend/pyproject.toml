@@ -48,6 +48,8 @@ where = ["src"]
 line-length = 100
 target-version = "py312"
 src = ["src"]
+# Generated gRPC/Protobuf stubs are not hand-written; don't lint them.
+extend-exclude = ["src/library/v1"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "C4", "SIM", "ASYNC"]
