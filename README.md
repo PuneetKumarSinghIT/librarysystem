@@ -64,16 +64,17 @@ support:  models · schemas · config · utils                        │
                              (adapters implement core ports; DI at main.py)
 ```
 
-```mermaid
-flowchart LR
-    FE[Next.js Frontend] -->|HTTPS/JSON| GW[REST Controller<br/>FastAPI]
-    CLI[gRPC client] -->|gRPC| GC[gRPC Controller<br/>servicers]
-    GW --> SVC[Service layer<br/>use-cases + rules]
-    GC --> SVC
-    SVC -->|depends on ports| CORE[core: entities, ports, errors]
-    ADP[Adapters: SQLAlchemy repos,<br/>argon2, JWT] -.implements.-> CORE
-    SVC --> ADP
-    ADP -->|async SQLAlchemy| DB[(PostgreSQL 16)]
+```text
+  Next.js Frontend ──HTTPS/JSON──►  REST Controller (FastAPI) ─┐
+                                                               ├─►  Service layer  ──depends on──►  core
+  gRPC client ─────────gRPC───────►  gRPC Controller (servicers)┘   (use-cases + rules)             (entities, ports, errors)
+                                                                          │                              ▲
+                                                                          ▼                              │ implements
+                                                                     Adapters  ───────────────────────────┘
+                                                              (SQLAlchemy repos, argon2, JWT)
+                                                                          │
+                                                                          ▼  async SQLAlchemy
+                                                                   PostgreSQL 16
 ```
 
 **Why this structure**
@@ -109,25 +110,146 @@ Layer directory map (`backend/src/library/`):
 
 ### 4.1 ER diagram
 
-```mermaid
-erDiagram
-    STAFF_USERS ||--o{ LOANS : "processed_by"
-    STAFF_USERS ||--o{ AUDIT_LOG : "actor"
-    STAFF_USERS ||--o{ REFRESH_TOKENS : "owns"
-    MEMBERS ||--o{ LOANS : "borrows"
-    BOOKS ||--o{ BOOK_COPIES : "has copies"
-    BOOK_COPIES ||--o{ LOANS : "lent as"
-    LOANS ||--o{ FINES : "may incur"
+The diagram below is plain ASCII (renders everywhere). `1` = "one", `∞` = "many".
+So `BOOKS 1 ──< ∞ BOOK_COPIES` reads "one book has many copies".
 
-    BOOKS { uuid id PK; text title; text author; text isbn UK; int published_year }
-    BOOK_COPIES { uuid id PK; uuid book_id FK; text barcode UK; text status }
-    MEMBERS { uuid id PK; text email UK; text status; timestamptz deleted_at }
-    STAFF_USERS { uuid id PK; text email UK; text password_hash; text role }
-    LOANS { uuid id PK; uuid copy_id FK; uuid member_id FK; timestamptz due_at; timestamptz returned_at }
-    FINES { uuid id PK; uuid loan_id FK; numeric amount; text status }
-    AUDIT_LOG { uuid id PK; uuid actor_staff_id FK; text action; jsonb metadata }
-    REFRESH_TOKENS { uuid id PK; uuid staff_id FK; text token_hash UK; timestamptz revoked_at }
+```text
+                          ┌──────────────┐
+                          │ STAFF_USERS  │  (admin | librarian)
+                          └──────┬───────┘
+             owns 1──<∞ │        │ actor 1──<∞          │ processed_by 1──<∞
+        ┌───────────────┘        └───────────────┐      └───────────────┐
+        ▼                                         ▼                      │
+┌────────────────┐                        ┌──────────────┐              │
+│ REFRESH_TOKENS │                        │  AUDIT_LOG   │              │
+└────────────────┘                        └──────────────┘              │
+                                                                        │
+   ┌─────────┐   1        ∞  ┌──────────────┐   1        ∞  ┌───────────▼──┐
+   │  BOOKS  │ ───────────<  │  BOOK_COPIES │ ───────────<  │    LOANS     │
+   └─────────┘  has copies   └──────────────┘   lent as     └──────┬───────┘
+                                                                   │ borrows ∞
+                                             ┌─────────────────────┘
+                                             │ ∞                    │ 1
+                                        ┌────▼─────┐          may   │ incur
+                                        │ MEMBERS  │  1──<∞         ▼ 1──<∞
+                                        └──────────┘          ┌──────────┐
+                                                              │  FINES   │
+                                                              └──────────┘
 ```
+
+**Relationships (read as "one … has many …"):**
+
+| Parent | | Child | Meaning |
+|--------|---|-------|---------|
+| `books` | 1 ──< ∞ | `book_copies` | a title has many physical copies |
+| `book_copies` | 1 ──< ∞ | `loans` | a copy is lent out many times over its life |
+| `members` | 1 ──< ∞ | `loans` | a member borrows many books |
+| `staff_users` | 1 ──< ∞ | `loans` | staff process (record) many loans |
+| `loans` | 1 ──< ∞ | `fines` | a loan may incur fines (e.g. overdue) |
+| `staff_users` | 1 ──< ∞ | `audit_log` | staff generate many audit entries |
+| `staff_users` | 1 ──< ∞ | `refresh_tokens` | a staff account owns many refresh tokens |
+
+### 4.1.1 Table-by-table schema
+
+Legend: **PK** = primary key · **FK** = foreign key · **UK** = unique · *NN* = not null.
+
+**`books`** — catalog titles
+| Column | Type | Key / Constraint |
+|--------|------|------------------|
+| id | uuid | **PK**, default `gen_random_uuid()` |
+| title | varchar(500) | *NN*, indexed (trigram) |
+| author | varchar(300) | *NN*, indexed (trigram) |
+| isbn | varchar(20) | **UK** (nullable) |
+| publisher | varchar(300) | |
+| published_year | int | |
+| category | varchar(120) | indexed |
+| description | text | |
+| created_at / updated_at | timestamptz | *NN* (updated_at via trigger) |
+| deleted_at | timestamptz | soft delete |
+
+**`book_copies`** — physical copies (lending happens here)
+| Column | Type | Key / Constraint |
+|--------|------|------------------|
+| id | uuid | **PK** |
+| book_id | uuid | **FK** → books.id (ON DELETE CASCADE), indexed |
+| barcode | varchar(64) | **UK**, *NN* |
+| condition | varchar | *NN* — new \| good \| worn \| damaged |
+| status | varchar | *NN*, indexed — available \| borrowed \| lost \| maintenance |
+| acquired_on | date | |
+| created_at / updated_at | timestamptz | *NN* |
+
+**`members`** — borrowers
+| Column | Type | Key / Constraint |
+|--------|------|------------------|
+| id | uuid | **PK** |
+| first_name / last_name | varchar(120) | *NN* |
+| email | varchar(320) | **UK**, *NN* |
+| phone | varchar(40) | |
+| address | varchar(500) | |
+| status | varchar | *NN* — active \| suspended |
+| created_at / updated_at | timestamptz | *NN* |
+| deleted_at | timestamptz | soft delete (preserves loan history) |
+
+**`staff_users`** — library staff accounts
+| Column | Type | Key / Constraint |
+|--------|------|------------------|
+| id | uuid | **PK** |
+| email | varchar(320) | **UK**, *NN* |
+| password_hash | varchar(255) | *NN* (argon2id) |
+| role | varchar | *NN* — admin \| librarian |
+| is_active | boolean | *NN*, default true |
+| last_login_at | timestamptz | |
+| created_at / updated_at | timestamptz | *NN* |
+
+**`loans`** — borrow/return events
+| Column | Type | Key / Constraint |
+|--------|------|------------------|
+| id | uuid | **PK** |
+| copy_id | uuid | **FK** → book_copies.id (RESTRICT), indexed |
+| member_id | uuid | **FK** → members.id (RESTRICT), indexed |
+| staff_id | uuid | **FK** → staff_users.id (SET NULL), nullable |
+| borrowed_at | timestamptz | *NN* |
+| due_at | timestamptz | *NN* |
+| returned_at | timestamptz | NULL while still out |
+| status | varchar | *NN* — active \| returned \| overdue |
+| renewed_count | int | *NN*, default 0 |
+
+> **Key constraint:** a **partial unique index** `uq_active_loan_per_copy ON loans(copy_id)
+> WHERE returned_at IS NULL` guarantees a copy can have at most **one open loan** — this is what
+> makes double-borrow impossible.
+
+**`fines`** — charges assessed against a member
+| Column | Type | Key / Constraint |
+|--------|------|------------------|
+| id | uuid | **PK** |
+| loan_id | uuid | **FK** → loans.id (CASCADE), indexed |
+| member_id | uuid | **FK** → members.id (RESTRICT), indexed |
+| amount | numeric(10,2) | *NN* (exact money) |
+| reason | varchar(300) | |
+| status | varchar | *NN* — pending \| paid \| waived |
+| assessed_at / paid_at | timestamptz | assessed *NN* |
+
+**`audit_log`** — append-only accountability trail
+| Column | Type | Key / Constraint |
+|--------|------|------------------|
+| id | uuid | **PK** |
+| actor_staff_id | uuid | **FK** → staff_users.id (SET NULL), indexed |
+| action | varchar(80) | *NN*, indexed (e.g. `loan.borrow`) |
+| entity_type | varchar(80) | *NN* |
+| entity_id | uuid | |
+| metadata | jsonb | |
+| ip_address | inet | |
+| created_at | timestamptz | *NN*, indexed |
+
+**`refresh_tokens`** — hashed, rotatable session tokens
+| Column | Type | Key / Constraint |
+|--------|------|------------------|
+| id | uuid | **PK** |
+| staff_id | uuid | **FK** → staff_users.id (CASCADE), indexed |
+| token_hash | varchar(128) | **UK**, *NN* (SHA-256; raw token never stored) |
+| expires_at | timestamptz | *NN* |
+| revoked_at | timestamptz | set on logout / rotation |
+| created_at | timestamptz | *NN* |
 
 ### 4.2 Design rationale
 
