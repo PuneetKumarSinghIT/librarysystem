@@ -8,6 +8,43 @@
 
 ---
 
+## 0. Current Status — RESUME HERE
+
+> Updated after every phase/subtask so work can resume without the full chat history.
+
+**Last updated:** 2026-07-19
+
+**Done:** F0 (scaffold) ✅ · F1 (database) ✅
+**In progress:** — (F1 just completed)
+**Next up:** F2 (proto contract) → F3 (auth). **Milestone target:** "login works end-to-end" (F1+F2+F3).
+
+**Environment / how to run locally:**
+- Postgres runs in Docker: `docker compose up -d postgres` (container `library_postgres`, db `library`, user `library_app`).
+- Backend venv: `backend/.venv` (Python 3.12). Activate: `backend\.venv\Scripts\activate`.
+- Apply migrations: `cd backend && .\.venv\Scripts\python -m alembic upgrade head`.
+- Seed sample data: `cd backend && .\.venv\Scripts\python -m scripts.seed`.
+- Run REST API: `cd backend && .\.venv\Scripts\python -m uvicorn library.main:app --reload --port 8000` → http://localhost:8000/docs
+- Frontend: `cd frontend && npm run dev` → http://localhost:3000 (still default starter page until F10).
+- Lint: `cd backend && .\.venv\Scripts\ruff check src scripts alembic`.
+
+**Repo:** public GitHub `PuneetKumarSinghIT/librarysystem` (origin/main). Commit each feature.
+
+**State of the DB:** migration `607eae6aadb0` (initial schema) applied — 8 tables, `updated_at`
+triggers, partial unique index `uq_active_loan_per_copy`, trigram indexes. Seeded with 5 books
+/ 13 copies / 3 members. Staff/admin accounts seeded later in F3 (need the password hasher).
+
+**Env gotcha:** file writes in `backend/` occasionally fail silently (sync/AV on `D:`). After
+creating/editing files, verify they persisted (Read or `Get-ChildItem`) before moving on.
+
+**Progress log:**
+- **F0** — SOLID/hexagonal scaffold (main→controller→service→core→adapter), FastAPI+gRPC
+  bootstrap, config, structured logging, health/ready, Docker Compose, Next.js scaffold. Booted & committed.
+- **F1** — ORM models (staff, members, books, book_copies, loans, fines, audit_log,
+  refresh_tokens), Alembic async env + initial migration (extensions, constraints, indexes,
+  partial unique index, updated_at triggers), seed script. Migration applied to Postgres; seed run; lint clean.
+
+---
+
 ## 1. Project Snapshot
 
 A backend + web app for a small neighborhood library to manage **books, members, and lending

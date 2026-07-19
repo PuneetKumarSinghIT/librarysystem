@@ -4,14 +4,29 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from enum import StrEnum
 
 from sqlalchemy import DateTime, func, text
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
 class Base(DeclarativeBase):
     """Declarative base for all ORM models."""
+
+
+def str_enum(enum_cls: type[StrEnum]) -> SAEnum:
+    """Portable VARCHAR-backed enum column type (stores the enum *value*, plus a CHECK).
+
+    Avoids managing native PostgreSQL ENUM types while keeping DB-level validation.
+    """
+    return SAEnum(
+        enum_cls,
+        native_enum=False,
+        length=32,
+        values_callable=lambda e: [m.value for m in e],
+    )
 
 
 class UUIDPrimaryKeyMixin:
