@@ -80,9 +80,11 @@ creating/editing files, verify they persisted (Read or `Get-ChildItem`) before m
   `/loans` (POST borrow, POST `/{id}/return`, GET list), auth-protected. 15 unit tests + full
   HTTP flow verified incl. **double-borrow → 409** and re-borrow after return.
 
-> **gRPC servicers note:** AuthServicer is implemented as the proven pattern. Book/Member/Loan
-> gRPC servicers + a gRPC auth interceptor are batched into **F9** to keep each feature's REST
-> vertical slice shippable and the running app (REST + frontend) moving. Protos already exist.
+- **F9** — gRPC completion. `AuthenticatedServicer` base (Bearer-metadata auth + session);
+  `BookServicer`, `MemberServicer`, `LoanServicer` (thin over the same services), registered in
+  `main_grpc`. Sample client `scripts/grpc_client.py` (login → ListBooks with token) verified
+  end-to-end. REST-polish items (OpenAPI `/docs`, error envelope, CORS, security headers) were
+  already delivered in F0/F3. Run gRPC: `python -m library.main_grpc`; client: `python -m scripts.grpc_client`.
 
 ---
 

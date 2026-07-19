@@ -15,7 +15,15 @@ from library.adapter.security.token_codec import JwtAccessTokenCodec
 from library.config import get_settings
 from library.config.logging import configure_logging, get_logger
 from library.controller.grpc.auth_servicer import AuthServicer
-from library.v1 import auth_pb2_grpc
+from library.controller.grpc.book_servicer import BookServicer
+from library.controller.grpc.loan_servicer import LoanServicer
+from library.controller.grpc.member_servicer import MemberServicer
+from library.v1 import (
+    auth_pb2_grpc,
+    books_pb2_grpc,
+    loans_pb2_grpc,
+    members_pb2_grpc,
+)
 
 log = get_logger("grpc")
 
@@ -36,7 +44,15 @@ async def serve() -> None:
         AuthServicer(sessionmaker, hasher, token_codec, settings.jwt_refresh_ttl_seconds),
         server,
     )
-    # BookService / MemberService / LoanService servicers registered here as they land.
+    books_pb2_grpc.add_BookServiceServicer_to_server(
+        BookServicer(sessionmaker, token_codec), server
+    )
+    members_pb2_grpc.add_MemberServiceServicer_to_server(
+        MemberServicer(sessionmaker, token_codec), server
+    )
+    loans_pb2_grpc.add_LoanServiceServicer_to_server(
+        LoanServicer(sessionmaker, token_codec), server
+    )
 
     listen_addr = f"0.0.0.0:{settings.grpc_port}"
     server.add_insecure_port(listen_addr)
