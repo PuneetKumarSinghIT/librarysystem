@@ -14,9 +14,13 @@
 
 **Last updated:** 2026-07-19
 
-**Done:** F0 (scaffold) ✅ · F1 (database) ✅ · F2 (proto contract) ✅
-**In progress:** F3 (auth)
-**Next up:** F3 (auth). **Milestone target:** "login works end-to-end" (F1+F2+F3).
+**Done:** F0 ✅ · F1 (database) ✅ · F2 (proto) ✅ · F3 (auth) ✅ — 🎯 **MILESTONE: login works end-to-end**
+**In progress:** —
+**Next up:** F4 (Books + Copies CRUD). Then F5 (Members), then lending F6–F8.
+
+**Demo admin (seeded):** `admin@example.com` / `Admin@12345` (override via `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`).
+**Test login:** `POST http://localhost:8000/auth/login` with `{"email","password"}` → returns access+refresh tokens.
+**Run tests:** `cd backend && .\.venv\Scripts\python -m pytest -q`.
 
 **Environment / how to run locally:**
 - Postgres runs in Docker: `docker compose up -d postgres` (container `library_postgres`, db `library`, user `library_app`).
@@ -46,6 +50,12 @@ creating/editing files, verify they persisted (Read or `Get-ChildItem`) before m
   services AuthService/BookService/MemberService/LoanService. Codegen via `scripts/gen_proto.py`
   → stubs committed at `src/library/v1/*_pb2*.py` (import as `library.v1.<name>_pb2`); excluded from ruff.
   To regenerate: `python -m scripts.gen_proto`.
+- **F3** — Auth. Core ports (`PasswordHasher`, `AccessTokenCodec`, `StaffRepository`,
+  `RefreshTokenRepository`); adapters (argon2id hasher, PyJWT HS256 codec, SQLAlchemy repos);
+  `AuthService` (login, refresh w/ rotation + reuse detection, logout) via constructor DI;
+  REST router `/auth/*` + gRPC `AuthServicer` (both thin over the same service); RBAC dep
+  `require_role`; admin seeding. 14 unit tests (all edge cases) green; login verified over HTTP.
+  Pattern to reuse for F4+: port → adapter → service (DI) → REST router + gRPC servicer → tests.
 
 ---
 

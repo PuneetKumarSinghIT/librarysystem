@@ -7,13 +7,19 @@ Idempotent: does nothing if books already exist. Staff/admin accounts are seeded
 from __future__ import annotations
 
 import asyncio
+import os
 from datetime import date
 
 from sqlalchemy import func, select
 
 from library.adapter.db.engine import get_sessionmaker
-from library.core.enums import CopyCondition, CopyStatus, MemberStatus
-from library.models import Book, BookCopy, Member
+from library.adapter.security.password_hasher import Argon2PasswordHasher
+from library.core.enums import CopyCondition, CopyStatus, MemberStatus, StaffRole
+from library.models import Book, BookCopy, Member, StaffUser
+
+# Default admin credentials (override via env). Change the password in any real deployment.
+_ADMIN_EMAIL = os.getenv("SEED_ADMIN_EMAIL", "admin@example.com")
+_ADMIN_PASSWORD = os.getenv("SEED_ADMIN_PASSWORD", "Admin@12345")
 
 # (title, author, isbn, category, num_copies)
 _BOOKS = [
@@ -35,9 +41,23 @@ _MEMBERS = [
 async def seed() -> None:
     sessionmaker = get_sessionmaker()
     async with sessionmaker() as session:
+        # Seed a default admin staff account if none exists (needed to log in).
+        staff_count = await session.scalar(select(func.count()).select_from(StaffUser))
+        if not staff_count:
+            session.add(
+                StaffUser(
+                    email=_ADMIN_EMAIL,
+                    password_hash=Argon2PasswordHasher().hash(_ADMIN_PASSWORD),
+                    role=StaffRole.ADMIN,
+                    is_active=True,
+                )
+            )
+            await session.commit()
+            print(f"Seeded admin: {_ADMIN_EMAIL} / {_ADMIN_PASSWORD}")
+
         existing = await session.scalar(select(func.count()).select_from(Book))
         if existing:
-            print(f"Seed skipped: {existing} books already present.")
+            print(f"Catalog seed skipped: {existing} books already present.")
             return
 
         for i, (title, author, isbn, category, n_copies) in enumerate(_BOOKS, start=1):

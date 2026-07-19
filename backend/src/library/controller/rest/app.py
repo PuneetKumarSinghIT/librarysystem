@@ -8,6 +8,8 @@ from sqlalchemy import text
 
 from library import __version__
 from library.adapter.db.engine import get_engine
+from library.adapter.security.password_hasher import Argon2PasswordHasher
+from library.adapter.security.token_codec import JwtAccessTokenCodec
 from library.config import get_settings
 from library.config.logging import configure_logging
 from library.controller.rest.errors import register_exception_handlers
@@ -15,6 +17,7 @@ from library.controller.rest.middleware import (
     RequestContextMiddleware,
     SecurityHeadersMiddleware,
 )
+from library.controller.rest.routers import auth
 
 
 def create_app() -> FastAPI:
@@ -42,6 +45,12 @@ def create_app() -> FastAPI:
 
     register_exception_handlers(app)
 
+    # Composition root: build shared security adapters once and expose via app.state.
+    app.state.hasher = Argon2PasswordHasher(time_cost=settings.argon2_time_cost)
+    app.state.token_codec = JwtAccessTokenCodec(
+        secret=settings.jwt_secret, ttl_seconds=settings.jwt_access_ttl_seconds
+    )
+
     @app.get("/health", tags=["system"], summary="Liveness probe")
     async def health() -> dict[str, str]:
         return {"status": "ok", "version": __version__}
@@ -52,8 +61,7 @@ def create_app() -> FastAPI:
             await conn.execute(text("SELECT 1"))
         return {"status": "ready"}
 
-    # Feature routers registered here as they are built (F3+):
-    # from library.controller.rest.routers import auth, books, members, loans
-    # app.include_router(auth.router)
+    # Feature routers.
+    app.include_router(auth.router)
 
     return app

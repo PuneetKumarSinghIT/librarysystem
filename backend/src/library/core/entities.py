@@ -1,8 +1,7 @@
-"""Domain entities — framework-free dataclasses.
+"""Domain entities and value objects — framework-free dataclasses.
 
-Entities model the business objects and their invariants. Repositories (adapters) map
-between these and ORM models; services operate purely on entities via ports. Populated
-feature-by-feature (F1+) as each aggregate is introduced.
+Entities model business objects. Repositories (adapters) map between these and ORM models;
+services operate purely on entities via ports. Populated feature-by-feature.
 """
 
 from __future__ import annotations
@@ -26,3 +25,32 @@ class Staff:
     last_login_at: datetime | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+
+@dataclass(slots=True)
+class RefreshTokenRecord:
+    """A stored refresh token (only its hash is persisted)."""
+
+    id: uuid.UUID
+    staff_id: uuid.UUID
+    token_hash: str
+    expires_at: datetime
+    revoked_at: datetime | None = None
+
+
+@dataclass(slots=True)
+class AccessClaims:
+    """Decoded claims carried by a JWT access token."""
+
+    staff_id: uuid.UUID
+    role: StaffRole
+
+
+@dataclass(slots=True)
+class AuthTokens:
+    """Result of a successful login/refresh: the token pair plus the staff identity."""
+
+    access_token: str
+    refresh_token: str
+    expires_in: int
+    staff: Staff
