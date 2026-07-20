@@ -324,6 +324,21 @@ WHERE title ILIKE '%clean%' OR author ILIKE '%martin%';
 - **Explicit exception handling** — every failure path is typed and mapped; no bare `except`,
   no leaked stack traces; structured JSON logs carry a per-request id.
 
+### 5.1 Backend improvements (client review round — branch `backend_fix`)
+
+Addressing reviewer feedback, error handling was made fully consistent so clients always get the
+same envelope, regardless of what went wrong:
+
+| Feedback | Change |
+|----------|--------|
+| **Generic exception handler missing** (unhandled errors returned inconsistent responses) | Added a catch-all `Exception` handler → **500 `internal_error`** in the standard envelope. The real error + traceback are logged **server-side** with the request id; **nothing internal is leaked** to the client. |
+| (consistency) | `RequestValidationError` → **422 `validation_error`** and `HTTPException` (404/405/…) are now wrapped in the same envelope too. |
+| (traceability) | Every error response includes a `request_id` in `details`, so a user can quote it and staff can find the matching server log. |
+
+Envelope everywhere: `{"error": {"code", "message", "details": {"request_id": "…"}}}`.
+Covered by `tests/unit/test_error_handlers.py` (7 tests: 500 without leaking internals,
+domain 404/409, validation 422, unknown route 404, method-not-allowed 405).
+
 ---
 
 ## 6. Frontend design & paradigm

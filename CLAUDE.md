@@ -646,6 +646,10 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 - Business failures raise a **typed `DomainError`** (`core/errors.py`); controllers map them
   to HTTP/gRPC codes centrally (§7). Unexpected errors → logged with request id → generic 500
   (never leak stack traces/PII to clients).
+  - **Implemented** in `controller/rest/errors.py` (branch `backend_fix`): handlers for
+    `DomainError`, `RequestValidationError` (422), `HTTPException` (404/405/…), and a catch-all
+    `Exception` (500 `internal_error`). All return the same envelope with a `request_id`; the
+    real error is logged server-side only. Tests: `tests/unit/test_error_handlers.py`.
 - Validation happens at the edge (Pydantic/proto) **and** invariants re-checked in the service
   (defense in depth). Log at the boundary with structured context; include a `request_id`.
 - Document the "logical steps" of each handler in a short docstring: preconditions → action →
