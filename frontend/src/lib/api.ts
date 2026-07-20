@@ -1,7 +1,7 @@
 // Typed client for the Neighborhood Library REST API.
+// Endpoint paths and base URL are centralized in lib/config.
 
-const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
-const TOKEN_KEY = "library_access_token";
+import { API_BASE, ENDPOINTS, PAGE_SIZE, TOKEN_KEY } from "./config";
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -32,7 +32,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(`${BASE}${path}`, { ...options, headers });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  } catch {
+    throw new ApiError(0, "network_error", "Cannot reach the server. Is the API running?");
+  }
   if (res.status === 204) return undefined as T;
 
   const body = await res.json().catch(() => ({}));
@@ -62,32 +67,69 @@ export interface Loan {
   returned_at: string | null; status: string; renewed_count: number;
 }
 export interface Page { limit: number; offset: number; total: number }
+export interface Paged<T> { items: T[]; page: Page }
+
+export interface PageParams { limit?: number; offset?: number }
+
+function pageQuery(params: PageParams): URLSearchParams {
+  const q = new URLSearchParams();
+  q.set("limit", String(params.limit ?? PAGE_SIZE));
+  q.set("offset", String(params.offset ?? 0));
+  return q;
+}
 
 export const api = {
   login: (email: string, password: string) =>
-    request<TokenResponse>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
+    request<TokenResponse>(ENDPOINTS.auth.login, {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
 
-  listBooks: (search = "") =>
-    request<{ items: Book[]; page: Page }>(`/books?search=${encodeURIComponent(search)}&limit=100`),
+  // ── Books ──
+  listBooks: (params: PageParams & { search?: string } = {}) => {
+    const q = pageQuery(params);
+    if (params.search) q.set("search", params.search);
+    return request<Paged<Book>>(`${ENDPOINTS.books.root}?${q.toString()}`);
+  },
   createBook: (data: Partial<Book>) =>
-    request<Book>("/books", { method: "POST", body: JSON.stringify(data) }),
+    request<Book>(ENDPOINTS.books.root, { method: "POST", body: JSON.stringify(data) }),
+  updateBook: (id: string, changes: Partial<Book>) =>
+    request<Book>(ENDPOINTS.books.byId(id), { method: "PATCH", body: JSON.stringify(changes) }),
   addCopy: (bookId: string, barcode: string, condition?: string) =>
-    request<Copy>(`/books/${bookId}/copies`, { method: "POST", body: JSON.stringify({ barcode, condition }) }),
-  listCopies: (bookId: string) => request<Copy[]>(`/books/${bookId}/copies`),
+    request<Copy>(ENDPOINTS.books.copies(bookId), {
+      method: "POST",
+      body: JSON.stringify({ barcode, condition }),
+    }),
+  listCopies: (bookId: string) => request<Copy[]>(ENDPOINTS.books.copies(bookId)),
 
-  listMembers: (search = "") =>
-    request<{ items: Member[]; page: Page }>(`/members?search=${encodeURIComponent(search)}&limit=100`),
+  // ── Members ──
+  listMembers: (params: PageParams & { search?: string } = {}) => {
+    const q = pageQuery(params);
+    if (params.search) q.set("search", params.search);
+    return request<Paged<Member>>(`${ENDPOINTS.members.root}?${q.toString()}`);
+  },
   createMember: (data: Partial<Member>) =>
-    request<Member>("/members", { method: "POST", body: JSON.stringify(data) }),
+    request<Member>(ENDPOINTS.members.root, { method: "POST", body: JSON.stringify(data) }),
+  updateMember: (id: string, changes: Partial<Member>) =>
+    request<Member>(ENDPOINTS.members.byId(id), {
+      method: "PATCH",
+      body: JSON.stringify(changes),
+    }),
+  deleteMember: (id: string) =>
+    request<{ success: boolean }>(ENDPOINTS.members.byId(id), { method: "DELETE" }),
 
-  listLoans: (params: { member_id?: string; active_only?: boolean } = {}) => {
-    const q = new URLSearchParams();
+  // ── Loans ──
+  listLoans: (params: PageParams & { member_id?: string; active_only?: boolean } = {}) => {
+    const q = pageQuery(params);
     if (params.member_id) q.set("member_id", params.member_id);
     if (params.active_only) q.set("active_only", "true");
-    q.set("limit", "100");
-    return request<{ items: Loan[]; page: Page }>(`/loans?${q.toString()}`);
+    return request<Paged<Loan>>(`${ENDPOINTS.loans.root}?${q.toString()}`);
   },
   borrow: (member_id: string, copy_id?: string, book_id?: string) =>
-    request<Loan>("/loans", { method: "POST", body: JSON.stringify({ member_id, copy_id, book_id }) }),
-  returnLoan: (loanId: string) => request<Loan>(`/loans/${loanId}/return`, { method: "POST" }),
+    request<Loan>(ENDPOINTS.loans.root, {
+      method: "POST",
+      body: JSON.stringify({ member_id, copy_id, book_id }),
+    }),
+  returnLoan: (loanId: string) =>
+    request<Loan>(ENDPOINTS.loans.return(loanId), { method: "POST" }),
 };

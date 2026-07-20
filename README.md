@@ -338,6 +338,25 @@ WHERE title ILIKE '%clean%' OR author ILIKE '%martin%';
 - **Why:** Next.js is the assignment's preferred framework; a typed client + context keeps the
   UI thin and consistent with the backend contract.
 
+### 6.1 Frontend improvements (client review round — branch `frontend_fix`)
+
+Addressing reviewer feedback, the frontend was hardened for correctness, UX, and maintainability:
+
+| Feedback | Change |
+|----------|--------|
+| **Edit Book & Edit Member missing** | Added `updateBook`/`updateMember` API methods and an **Edit** action opening a prefilled **modal** on both pages (member edit includes active/suspended status) |
+| **Weak validation / no trimming** | New `lib/validation.ts` (trim, reject empty/whitespace-only, email/ISBN/year rules) with **inline field errors** — no reliance on HTML `required` alone |
+| **Buttons enabled during API calls** | Every action (create, edit, borrow, return, add-copy, delete) uses a `submitting` state → button **disables + shows "Saving…"**, preventing duplicate requests |
+| **No loading indicators** | All list views (Books, Members, Loans) show a **loading state** while fetching |
+| **Hardcoded endpoint paths** | Centralized in `lib/config.ts` (`API_BASE` + `ENDPOINTS` map); no endpoint strings in app code |
+| **No error boundaries** | Reusable `<ErrorBoundary>` + Next.js route-level `app/error.tsx` |
+| **No reusable list component** | Generic **`<DataTable>`** (columns + loading/empty states) used by all three lists |
+| **No server-side pagination** | `<Pagination>` (Prev/Next + "X–Y of Z") driven by the backend's `page.total`; page size in `lib/config.ts` |
+
+**Frontend tests (Vitest + React Testing Library):** 23 tests across validation, the API client
+(endpoints/pagination/auth/errors), `DataTable`, `Pagination`, and `BookForm` (validation +
+disabled-while-submitting). Run: `cd frontend && npm test`. Lint + production build are clean.
+
 ---
 
 ## 7. Time & space complexity

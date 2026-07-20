@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { api, getToken, setToken, Staff } from "./api";
+import { STAFF_KEY } from "./config";
 
 interface AuthState {
   staff: Staff | null;
@@ -22,7 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Restore session hint from a stored token (staff details re-fetched on login).
     const token = getToken();
     if (token) {
-      const cached = window.localStorage.getItem("library_staff");
+      const cached = window.localStorage.getItem(STAFF_KEY);
       if (cached) setStaff(JSON.parse(cached));
     }
     setReady(true);
@@ -31,14 +32,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function login(email: string, password: string) {
     const res = await api.login(email, password);
     setToken(res.access_token);
-    window.localStorage.setItem("library_staff", JSON.stringify(res.staff));
+    window.localStorage.setItem(STAFF_KEY, JSON.stringify(res.staff));
     setStaff(res.staff);
     router.push("/books");
   }
 
   function logout() {
     setToken(null);
-    window.localStorage.removeItem("library_staff");
+    window.localStorage.removeItem(STAFF_KEY);
     setStaff(null);
     router.push("/login");
   }
